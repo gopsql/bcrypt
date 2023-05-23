@@ -113,17 +113,17 @@ func TestInDatabase(_t *testing.T) {
 	conn := pq.MustOpen(connStr)
 	u := psql.NewModel(user{}, conn, logger.StandardLogger)
 
-	u.NewSQLWithValues(u.DropSchema()).MustExecute()
-	u.NewSQLWithValues(u.Schema()).MustExecute()
+	u.NewSQL(u.DropSchema()).MustExecute()
+	u.NewSQL(u.Schema()).MustExecute()
 
 	var newUserId int
-	u.Insert(u.Permit("Password").Filter(`{"Password":""}`))("RETURNING id").MustQueryRow(&newUserId)
+	u.Insert(u.Permit("Password").Filter(`{"Password":""}`)).Returning("id").MustQueryRow(&newUserId)
 	var u1 user
 	u.Find("WHERE id = $1", newUserId).MustQuery(&u1)
 	t.String(u1.Password.Hashed, "") // empty password should have empty hash
 	t.False(u1.Password.Equal(""))   // empty password should never pass
 
-	u.Update(u.Permit("Password").Filter(`{"Password":"newpass"}`))("WHERE id = $1", newUserId).MustExecute()
+	u.Update(u.Permit("Password").Filter(`{"Password":"newpass"}`)).Where("id = $1", newUserId).MustExecute()
 	var u2 user
 	u.Find("WHERE id = $1", newUserId).MustQuery(&u2)
 	t.Int(len(u2.Password.Hashed), 60)
@@ -133,14 +133,14 @@ func TestInDatabase(_t *testing.T) {
 	a.SetConnection(conn)
 	a.SetLogger(logger.StandardLogger)
 
-	a.NewSQLWithValues(a.DropSchema()).MustExecute()
-	a.NewSQLWithValues(a.Schema()).MustExecute()
+	a.NewSQL(a.DropSchema()).MustExecute()
+	a.NewSQL(a.Schema()).MustExecute()
 
 	var newAdminId int
 	a.Insert(
 		a.Permit("Password", "OtherPassword").
 			Filter(`{"Password":"admin","OtherPassword":"random"}`),
-	)("RETURNING id").MustQueryRow(&newAdminId)
+	).Returning("id").MustQueryRow(&newAdminId)
 	var a1 admin
 	a1.Password.MustUpdate("foo")
 	a1.OtherPassword = &bcrypt.Password{}
